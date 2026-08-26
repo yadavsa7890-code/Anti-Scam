@@ -1,0 +1,8 @@
+# Don't upload installed npm packages
+node_modules/
+
+# Don't upload secret API keys
+.env
+
+# Don't upload generated Vite build
+dist/
