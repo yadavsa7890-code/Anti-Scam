@@ -70,6 +70,18 @@ function Chatbot() {
                 }
             );
 
+            // Handle OpenRouter daily usage limit / quota exhaustion even if non-JSON
+            if (response.status === 429) {
+                setChatMessages((previousMessages) => [
+                    ...previousMessages,
+                    {
+                        role: "assistant",
+                        text: "AntiScam AI has reached its temporary daily usage limit. You can still use Guided Help, Learn, Scam Simulator, and Scam Quiz. Please try the AI assistant again later."
+                    }
+                ]);
+                return;
+            }
+
             // Inspect content-type before parsing to avoid JSON parse crashes
             const contentType = response.headers.get("content-type") || "";
             let data = null;
@@ -79,6 +91,18 @@ function Chatbot() {
             } else {
                 await response.text();
                 throw new Error("Non-JSON response received from server.");
+            }
+
+            // Handle OpenRouter daily usage limit / quota exhaustion
+            if (data?.error === "AI_DAILY_LIMIT") {
+                setChatMessages((previousMessages) => [
+                    ...previousMessages,
+                    {
+                        role: "assistant",
+                        text: "AntiScam AI has reached its temporary daily usage limit. You can still use Guided Help, Learn, Scam Simulator, and Scam Quiz. Please try the AI assistant again later."
+                    }
+                ]);
+                return;
             }
 
             if (!response.ok || !data?.reply) {

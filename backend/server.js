@@ -200,44 +200,29 @@ function cleanReplyFormatting(text) {
         .trim();
 }
 
-// Educational responses for standard awareness questions when AI is unavailable or rate-limited
-function getEducationalResponse(message) {
-    if (!message || typeof message !== "string") return null;
-    const text = message.toLowerCase().trim();
+// Detect if OpenRouter returned a quota/rate-limit error (e.g. daily free tier limit)
+function isOpenRouterRateLimit(status, errorMessage) {
+    if (status === 429) return true;
+    if (!errorMessage || typeof errorMessage !== "string") return false;
+    const lower = errorMessage.toLowerCase();
+    return (
+        lower.includes("rate limit") ||
+        lower.includes("free-models-per-day") ||
+        lower.includes("daily limit") ||
+        lower.includes("quota") ||
+        lower.includes("too many requests") ||
+        (lower.includes("credit") && lower.includes("limit"))
+    );
+}
 
-    if (/what\s+is\s+phishing\b/i.test(text) || /^phishing\??$/i.test(text)) {
-        return (
-            "Phishing is a deceptive cyber technique where attackers pretend to be trusted organizations (like banks, courier services, or government agencies) to trick you into revealing sensitive credentials, passwords, credit card details, or OTPs.\n\n" +
-            "Common phishing indicators:\n" +
-            "1. Urgent warnings or threats (e.g. 'account blocked in 24 hours').\n" +
-            "2. Unofficial sender addresses or mismatched website URLs.\n" +
-            "3. Requests to click unknown links or download attachments.\n" +
-            "4. Demands for sensitive personal credentials or authentication secrets.\n\n" +
-            "Always verify claims directly through official channels."
-        );
+// Redact any sensitive tokens/keys before logging to protect secrets
+function redactApiKey(str) {
+    if (!str || typeof str !== "string") return str;
+    const key = process.env.OPENROUTER_API_KEY;
+    if (key && key.length > 5) {
+        return str.split(key).join("[REDACTED]");
     }
-
-    if (/what\s+is\s+(?:a\s+)?upi\s*pin\b/i.test(text)) {
-        return (
-            "A UPI PIN (Unified Payments Interface Personal Identification Number) is a 4- or 6-digit secret passcode set by you to authorize financial transactions from your bank account.\n\n" +
-            "Crucial facts about UPI PIN:\n" +
-            "1. A UPI PIN is ONLY entered when SENDING money, transferring funds, or checking account balance.\n" +
-            "2. You NEVER need to enter your UPI PIN to RECEIVE money.\n" +
-            "3. Never share your UPI PIN with anyone, including buyers or bank representatives."
-        );
-    }
-
-    if (/what\s+is\s+(?:a\s+)?qr\s*code\b/i.test(text)) {
-        return (
-            "A QR (Quick Response) code is a two-dimensional barcode that stores encoded information such as web links, text, or payment addresses.\n\n" +
-            "How QR codes work:\n" +
-            "1. When scanned using a camera or UPI app, it decodes the stored destination or payment request.\n" +
-            "2. In payments, scanning a QR code is used to SEND money to a recipient.\n" +
-            "3. Scanning a QR code is NEVER required to receive money into your bank account."
-        );
-    }
-
-    return null;
+    return str;
 }
 
 
@@ -451,8 +436,30 @@ Use longer explanations only when the user specifically asks for more detail.
                         break;
                     }
                 } else {
-                    const errorData = await response.json().catch(() => ({}));
-                    lastError = errorData?.error?.message || "Unable to get AI response.";
+                    const status = response.status;
+                    let errorMsg = "";
+                    try {
+                        const rawText = await response.text();
+                        try {
+                            const errorData = JSON.parse(rawText);
+                            errorMsg = (typeof errorData?.error === "string" ? errorData.error : errorData?.error?.message) || errorData?.message || rawText;
+                        } catch {
+                            errorMsg = rawText;
+                        }
+                    } catch {
+                        errorMsg = "";
+                    }
+                    lastError = errorMsg || `HTTP ${status}`;
+
+                    // If rate limit / daily free tier quota exceeded, stop retrying immediately
+                    if (isOpenRouterRateLimit(status, errorMsg)) {
+                        clearTimeout(timeoutId);
+                        console.warn("OpenRouter daily limit reached:", redactApiKey(errorMsg || `HTTP ${status}`));
+                        return res.status(429).json({
+                            error: "AI_DAILY_LIMIT",
+                            message: "The AntiScam AI assistant has reached its temporary daily usage limit. Please try again later."
+                        });
+                    }
                 }
             } catch (attemptErr) {
                 if (attemptErr.name === "AbortError") throw attemptErr;
@@ -467,18 +474,19 @@ Use longer explanations only when the user specifically asks for more detail.
         // ========================================
 
         if (!reply) {
-            console.error("OpenRouter response empty after attempts:", lastError);
+            console.error("OpenRouter response empty after attempts:", redactApiKey(lastError));
+
+            if (isOpenRouterRateLimit(0, lastError)) {
+                console.warn("OpenRouter daily limit reached:", redactApiKey(lastError));
+                return res.status(429).json({
+                    error: "AI_DAILY_LIMIT",
+                    message: "The AntiScam AI assistant has reached its temporary daily usage limit. Please try again later."
+                });
+            }
 
             if (isHighRisk) {
                 return res.json({
                     reply: cleanReplyFormatting(getSafetyFallback(message))
-                });
-            }
-
-            const educational = getEducationalResponse(message);
-            if (educational) {
-                return res.json({
-                    reply: cleanReplyFormatting(educational)
                 });
             }
 
@@ -492,8 +500,7 @@ Use longer explanations only when the user specifically asks for more detail.
             console.warn("Safety guard triggered: AI returned inadequate or unsafe response for high-risk input. Applying fallback.");
             reply = getSafetyFallback(message);
         } else if (/^user\s*safety:\s*(?:safe|unsafe)/i.test(reply.trim()) && reply.trim().length < 60) {
-            const educational = getEducationalResponse(message);
-            reply = educational || "AntiScam provides cybersecurity awareness and scam guidance. Please describe what happened in more detail to receive safety advice.";
+            reply = "AntiScam provides cybersecurity awareness and scam guidance. Please describe what happened in more detail to receive safety advice.";
         }
 
         // Clean any stray markdown bold/heading markers
@@ -517,21 +524,20 @@ Use longer explanations only when the user specifically asks for more detail.
             });
         }
 
-        console.error(
-            "Chat API error:",
-            error
-        );
+        const safeErrMessage = redactApiKey(error?.message || String(error));
+        console.error("Chat API error:", safeErrMessage);
+
+        if (isOpenRouterRateLimit(error.status || 0, error.message)) {
+            console.warn("OpenRouter daily limit reached:", safeErrMessage);
+            return res.status(429).json({
+                error: "AI_DAILY_LIMIT",
+                message: "The AntiScam AI assistant has reached its temporary daily usage limit. Please try again later."
+            });
+        }
 
         if (isHighRisk) {
             return res.json({
                 reply: cleanReplyFormatting(getSafetyFallback(message))
-            });
-        }
-
-        const educational = getEducationalResponse(message);
-        if (educational) {
-            return res.json({
-                reply: cleanReplyFormatting(educational)
             });
         }
 

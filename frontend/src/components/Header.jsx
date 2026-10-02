@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import "./Header.css";
-import logo from "../assets/AntiScam.png";
+import logo from "../assets/AntiScam.svg";
 
 function Header() {
 
