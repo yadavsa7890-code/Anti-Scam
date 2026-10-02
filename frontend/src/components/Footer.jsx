@@ -15,12 +15,12 @@ function Footer() {
                 <div className="footer-section">
 
                     <h4 className="footer-title">
-                        AntiScam App
+                        AntiScam
                     </h4>
 
                     <p className="footer-text">
-                        Helping users identify, prevent,
-                        and report online scams safely.
+                        An educational awareness project helping users recognize, prevent,
+                        and understand online scams and fraud safely.
                     </p>
 
                 </div>
@@ -34,6 +34,12 @@ function Footer() {
                     </h4>
 
                     <ul className="footer-links">
+
+                        <li>
+                            <Link to="/learn">
+                                Learn About Scams
+                            </Link>
+                        </li>
 
                         <li>
                             <Link to="/simulation">
@@ -55,7 +61,7 @@ function Footer() {
 
                         <li>
                             <Link to="/chatbot">
-                                Get Help
+                                Scam Help
                             </Link>
                         </li>
 
@@ -73,7 +79,7 @@ function Footer() {
 
                     <p className="footer-text">
                         For financial cyber fraud in India,
-                        call the Cyber Crime Helpline at{" "}
+                        call the National Cyber Crime Helpline:{" "}
                         <strong>1930</strong>.
                     </p>
 
@@ -82,7 +88,7 @@ function Footer() {
 
                         {/* Government Cyber Crime Portal */}
                         <a
-                            href="https://www.cybercrime.gov.in/"
+                            href="https://cybercrime.gov.in/"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="footer-btn"

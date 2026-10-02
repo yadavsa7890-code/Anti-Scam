@@ -17,7 +17,7 @@ function Score() {
 
     const simulationTotal = savedSimulationTotal
         ? Number(savedSimulationTotal)
-        : 3;
+        : 10;
 
     const quizScore = quizAttempted
         ? Number(savedQuizScore)
@@ -25,7 +25,7 @@ function Score() {
 
     const quizTotal = savedQuizTotal
         ? Number(savedQuizTotal)
-        : 5;
+        : 15;
 
     const totalScore =
         (simulationAttempted ? simulationScore : 0) +

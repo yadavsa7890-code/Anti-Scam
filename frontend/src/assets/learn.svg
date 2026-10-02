@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96" fill="none">
+  <!-- Glowing background effect -->
+  <defs>
+    <radialGradient id="learnGlow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#00bcd4" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#00bcd4" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0e2338"/>
+      <stop offset="100%" stop-color="#07121f"/>
+    </linearGradient>
+    <linearGradient id="cyanLine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38e1f5"/>
+      <stop offset="100%" stop-color="#00bcd4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Ambient Glow Circle -->
+  <circle cx="48" cy="48" r="42" fill="url(#learnGlow)" />
+
+  <!-- Shield Base Outer -->
+  <path d="M48 10 L78 22 C78 52 48 78 48 84 C48 78 18 52 18 22 Z" 
+        fill="url(#shieldGrad)" 
+        stroke="url(#cyanLine)" 
+        stroke-width="2.5" 
+        stroke-linejoin="round" />
+
+  <!-- Inner Open Book Graphic -->
+  <!-- Left Page -->
+  <path d="M48 55 C42 50 32 49 28 50 L28 35 C32 34 42 35 48 40 Z" 
+        fill="rgba(0, 188, 212, 0.12)" 
+        stroke="#00bcd4" 
+        stroke-width="2" 
+        stroke-linejoin="round" />
+
+  <!-- Right Page -->
+  <path d="M48 55 C54 50 64 49 68 50 L68 35 C64 34 54 35 48 40 Z" 
+        fill="rgba(0, 188, 212, 0.12)" 
+        stroke="#00bcd4" 
+        stroke-width="2" 
+        stroke-linejoin="round" />
+
+  <!-- Book Spine Center -->
+  <line x1="48" y1="40" x2="48" y2="56" stroke="#38e1f5" stroke-width="2" stroke-linecap="round" />
+
+  <!-- Awareness Lightbulb/Star at Top -->
+  <circle cx="48" cy="27" r="4" fill="#00bcd4" />
+  <line x1="48" y1="19" x2="48" y2="21" stroke="#38e1f5" stroke-width="1.8" stroke-linecap="round" />
+  <line x1="42" y1="23" x2="44" y2="24.5" stroke="#38e1f5" stroke-width="1.8" stroke-linecap="round" />
+  <line x1="54" y1="23" x2="52" y2="24.5" stroke="#38e1f5" stroke-width="1.8" stroke-linecap="round" />
+
+  <!-- Decorative Bookmark ribbon -->
+  <path d="M48 56 L44 65 L48 63 L52 65 Z" fill="#00bcd4" />
+</svg>

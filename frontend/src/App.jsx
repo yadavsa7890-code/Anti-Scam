@@ -3,8 +3,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 
-import Login from "./pages/Login";
 import Home from "./pages/Home";
+import Learn from "./pages/Learn";
 import Simulation from "./pages/Simulation";
 import Quiz from "./pages/Quiz";
 import Score from "./pages/Score";
@@ -24,6 +24,11 @@ function App() {
                         <Route path="/" element={<Home />} />
 
                         <Route
+                            path="/learn"
+                            element={<Learn />}
+                        />
+
+                        <Route
                             path="/simulation"
                             element={<Simulation />}
                         />
@@ -41,11 +46,6 @@ function App() {
                         <Route
                             path="/chatbot"
                             element={<Chatbot />}
-                        />
-
-                        <Route 
-                            path="/login" 
-                            element={<Login />} 
                         />
 
                         <Route 

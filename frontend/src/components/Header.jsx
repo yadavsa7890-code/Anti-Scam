@@ -31,6 +31,14 @@ function Header() {
                     Home
                 </NavLink>
 
+                <NavLink
+                    to="/learn"
+                    className={({ isActive }) =>
+                        isActive ? "active" : ""
+                    }
+                >
+                    Learn
+                </NavLink>
 
                 <NavLink
                     to="/simulation"
@@ -68,16 +76,7 @@ function Header() {
                         isActive ? "active" : ""
                     }
                 >
-                    Chatbot
-                </NavLink>
-
-                <NavLink
-                    to="/login"
-                    className={({ isActive }) =>
-                        isActive ? "active" : ""
-                  }
-                >
-                    Login    
+                    Scam Help
                 </NavLink>
 
             </nav>
