@@ -4,19 +4,21 @@ require("dotenv").config();
 
 const app = express();
 
-/* ==================================================
-   MIDDLEWARE
-================================================== */
 
-// Allow requests from the React frontend
+// ========================================
+// MIDDLEWARE
+// ========================================
+
+// Allow requests from frontend
 app.use(cors());
 
 // Allow JSON request bodies
 app.use(express.json());
 
-/* ==================================================
-   TEST ROUTE
-================================================== */
+
+// ========================================
+// TEST ROUTE
+// ========================================
 
 app.get("/", (req, res) => {
     res.json({
@@ -24,138 +26,216 @@ app.get("/", (req, res) => {
     });
 });
 
-/* ==================================================
-   CHAT API
-================================================== */
+
+// ========================================
+// ANTISCAM CHAT API
+// ========================================
 
 app.post("/api/chat", async (req, res) => {
+
     const { message } = req.body;
 
-    /* --------------------------------------------------
-       VALIDATION
-    -------------------------------------------------- */
-
-    if (!message || typeof message !== "string" || !message.trim()) {
+    // Validate user message
+    if (
+        !message ||
+        typeof message !== "string" ||
+        !message.trim()
+    ) {
         return res.status(400).json({
             error: "Message is required."
         });
     }
 
-    const trimmedMessage = message.trim();
-
-    if (trimmedMessage.length > 3000) {
+    // Prevent extremely large messages
+    if (message.length > 3000) {
         return res.status(400).json({
             error: "Message is too long. Please send a shorter message."
         });
     }
 
-    /* --------------------------------------------------
-       API KEY CHECK
-    -------------------------------------------------- */
+    // Check API key
+    if (!process.env.OPENROUTER_API_KEY) {
+        console.error("OPENROUTER_API_KEY is missing.");
 
-    const apiKey = process.env.OPENROUTER_API_KEY;
-
-    if (!apiKey) {
-        console.error("Server Error: Missing OPENROUTER_API_KEY environment variable.");
-        return res.status(503).json({
+        return res.status(500).json({
             error: "AI service is not configured."
         });
     }
 
-    /* --------------------------------------------------
-       OPENROUTER REQUEST (WITH TIMEOUT)
-    -------------------------------------------------- */
-
+    // Optional 25s timeout for AI response
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25000);
 
     try {
+
+        // ========================================
+        // SEND REQUEST TO OPENROUTER
+        // ========================================
+
         const response = await fetch(
             "https://openrouter.ai/api/v1/chat/completions",
             {
                 method: "POST",
                 signal: controller.signal,
                 headers: {
-                    "Authorization": `Bearer ${apiKey}`,
+                    "Authorization":
+                        `Bearer ${process.env.OPENROUTER_API_KEY}`,
+
                     "Content-Type": "application/json",
-                    "HTTP-Referer": "https://anti-scam-beta.vercel.app",
-                    "X-Title": "AntiScam College Project"
+
+                    "HTTP-Referer":
+                        "https://anti-scam-beta.vercel.app",
+
+                    "X-Title":
+                        "AntiScam College Project"
                 },
+
                 body: JSON.stringify({
+
+                    // Free OpenRouter model router
                     model: "openrouter/free",
+
+                    // Keep responses reasonably short
                     max_tokens: 300,
+
+                    // Slightly reduce randomness
                     temperature: 0.4,
+
                     messages: [
+
+                        // ========================================
+                        // SYSTEM INSTRUCTIONS
+                        // ========================================
+
                         {
                             role: "system",
-                            content: `You are AntiScam, a concise cybersecurity safety assistant.
 
-Your purpose is to help users recognize and respond safely to phishing, scams, and online fraud.
+                            content: `
+You are AntiScam, a cybersecurity awareness assistant.
 
-Core Safety Rules:
-- Never ask for, repeat, or store passwords, OTPs, PINs, CVVs, card numbers, or bank credentials.
-- Never claim to be a bank, law enforcement, or government authority.
-- Never claim AntiScam can retrieve lost money or officially file police reports.
-- If money was lost or sensitive info was compromised, tell the victim to immediately contact their bank or payment app to freeze accounts/cards.
-- For financial cyber fraud in India, direct users to call the National Cyber Crime Helpline: 1930 and file a report at https://cybercrime.gov.in/
-- Advise preserving evidence (screenshots, transaction IDs/UTR numbers, sender phone numbers, URLs).
+Your job is to help users recognize and respond to phishing, scams, and online fraud.
 
-Response Style (Keep It Short & Fast):
-- Put the most critical, immediate safety action first.
-- Avoid lengthy greetings, philosophical introductions, and unnecessary background explanations.
-- When practical, structure guidance simply:
-  What to do:
-  1. [Action 1]
-  2. [Action 2]
-  3. [Action 3]
+GENERAL RULES:
 
-  Important:
-  [Key warning]
-- Keep responses concise (normally under 150 words).
-- If key details are missing, ask only one brief follow-up question.`
+- Give simple, practical, and accurate scam-safety guidance.
+- Give the most important action first.
+- Prefer 3-5 short actionable steps when appropriate.
+- Avoid long introductions.
+- Avoid unnecessary explanations.
+- Keep responses concise and easy to understand.
+- If there is not enough information, ask one simple follow-up question.
+
+SECURITY RULES:
+
+- Never ask users for passwords, OTPs, PINs, CVVs, full card numbers, banking credentials, or other authentication secrets.
+- Do not claim to be a bank, police officer, government authority, or official cybercrime reporting service.
+- Do not tell users that AntiScam can recover money or officially report crimes.
+- Encourage users to independently verify suspicious requests using official contact information.
+
+FINANCIAL CYBER FRAUD IN INDIA:
+
+If the user reports that money has been lost or transferred because of suspected cyber fraud:
+
+1. Tell them to immediately contact their bank, UPI provider, wallet provider, or other payment provider.
+2. Tell them they can call the National Cyber Crime Helpline at 1930.
+3. Direct them to the official National Cyber Crime Reporting Portal:
+   https://cybercrime.gov.in/
+4. Encourage them to preserve evidence such as screenshots, messages, transaction IDs, phone numbers, email addresses, and relevant URLs.
+
+PRIVACY RULES:
+
+- Users may describe scams involving OTPs, passwords, bank accounts, cards, UPI, phone numbers, or personal information.
+- Provide general safety guidance without asking them to reveal sensitive information.
+- Never request or repeat OTPs, passwords, PINs, CVVs, full card numbers, bank credentials, government ID numbers, or other secrets.
+- If a user accidentally shares sensitive information, do not repeat it.
+- Tell the user to protect or remove sensitive information they accidentally shared.
+- You may discuss these types of information generally when explaining scam prevention.
+
+RESPONSE STYLE:
+
+Keep responses practical and concise.
+
+Prefer a format like:
+
+What to do:
+1. First action.
+2. Second action.
+3. Third action.
+
+Important:
+A short warning if necessary.
+
+Use longer explanations only when the user specifically asks for more detail.
+`
                         },
+
+                        // ========================================
+                        // USER MESSAGE
+                        // ========================================
+
                         {
                             role: "user",
-                            content: trimmedMessage
+                            content: message.trim()
                         }
+
                     ]
+
                 })
             }
         );
 
-        /* --------------------------------------------------
-           RESPONSE HANDLING
-        -------------------------------------------------- */
-
         clearTimeout(timeoutId);
+
+        // ========================================
+        // READ OPENROUTER RESPONSE
+        // ========================================
 
         const data = await response.json();
 
+        // OpenRouter returned an error
         if (!response.ok) {
-            console.error(`OpenRouter returned HTTP ${response.status}:`, data?.error?.message || "Unknown error");
+
+            console.error(
+                "OpenRouter error:",
+                data
+            );
+
             return res.status(response.status).json({
-                error: data?.error?.message || "Unable to get AI response. Please try again."
+                error:
+                    data?.error?.message ||
+                    "Unable to get AI response."
             });
         }
 
-        const reply = data?.choices?.[0]?.message?.content;
+        // ========================================
+        // EXTRACT AI RESPONSE
+        // ========================================
 
-        if (!reply || !reply.trim()) {
+        const reply =
+            data?.choices?.[0]?.message?.content;
+
+        if (!reply) {
+
+            console.error(
+                "Empty OpenRouter response:",
+                data
+            );
+
             return res.status(500).json({
-                error: "The AI returned an empty response. Please try again."
+                error: "The AI returned an empty response."
             });
         }
 
-        res.json({
+        // ========================================
+        // SEND RESPONSE TO FRONTEND
+        // ========================================
+
+        return res.json({
             reply: reply.trim()
         });
 
     } catch (error) {
         clearTimeout(timeoutId);
-
-        /* --------------------------------------------------
-           ERROR HANDLING
-        -------------------------------------------------- */
 
         if (error.name === "AbortError") {
             console.error("OpenRouter request timed out after 25 seconds.");
@@ -164,20 +244,29 @@ Response Style (Keep It Short & Fast):
             });
         }
 
-        console.error("Chat API error:", error.message || error);
+        console.error(
+            "Chat API error:",
+            error
+        );
 
-        res.status(500).json({
-            error: "Unable to connect to the AI service. Please try again later."
+        return res.status(500).json({
+            error: "Unable to connect to the AI service."
         });
     }
+
 });
 
-/* ==================================================
-   SERVER START
-================================================== */
+
+// ========================================
+// START SERVER
+// ========================================
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-    console.log(`AntiScam backend running on port ${PORT}`);
+
+    console.log(
+        `AntiScam backend running on port ${PORT}`
+    );
+
 });
