@@ -70,6 +70,11 @@ function Score() {
 
     function resetScores() {
 
+        const confirmed = window.confirm("Reset all Simulator and Quiz scores?");
+        if (!confirmed) {
+            return;
+        }
+
         localStorage.removeItem("simulationScore");
         localStorage.removeItem("simulationTotal");
         localStorage.removeItem("quizScore");

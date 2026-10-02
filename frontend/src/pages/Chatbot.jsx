@@ -70,10 +70,19 @@ function Chatbot() {
                 }
             );
 
-            const data = await response.json();
+            // Inspect content-type before parsing to avoid JSON parse crashes
+            const contentType = response.headers.get("content-type") || "";
+            let data = null;
 
-            if (!response.ok) {
-                throw new Error(data.error || "Something went wrong.");
+            if (contentType.includes("application/json")) {
+                data = await response.json();
+            } else {
+                await response.text();
+                throw new Error("Non-JSON response received from server.");
+            }
+
+            if (!response.ok || !data?.reply) {
+                throw new Error(data?.error || "Something went wrong.");
             }
 
             setChatMessages((previousMessages) => [
@@ -84,13 +93,13 @@ function Chatbot() {
                 }
             ]);
         } catch (error) {
-            console.error(error);
+            console.error("Chat assistant error:", error);
 
             setChatMessages((previousMessages) => [
                 ...previousMessages,
                 {
                     role: "assistant",
-                    text: "Unable to connect to the AntiScam assistant. Please try again or refer to the official helpline."
+                    text: "AntiScam couldn't get a response right now. Please try again."
                 }
             ]);
         } finally {
