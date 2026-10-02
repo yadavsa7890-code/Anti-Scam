@@ -324,7 +324,7 @@ function Chatbot() {
                     {chatLoading && (
                         <div className="chat-message assistant-message">
                             <span className="message-label">ANTISCAM</span>
-                            <p className="typing-text">Thinking...</p>
+                            <p className="typing-text">AntiScam is checking...</p>
                         </div>
                     )}
                 </div>
@@ -335,13 +335,14 @@ function Chatbot() {
                         onChange={(event) => setChatMessage(event.target.value)}
                         placeholder="Describe what happened without sharing passwords, OTPs, PINs, card numbers, or other sensitive information."
                         rows="3"
+                        disabled={chatLoading}
                     />
 
                     <button
                         type="submit"
-                        disabled={chatLoading}
+                        disabled={chatLoading || !chatMessage.trim()}
                     >
-                        {chatLoading ? "Sending..." : "Ask AntiScam →"}
+                        {chatLoading ? "Checking with AntiScam..." : "Ask AntiScam →"}
                     </button>
                 </form>
             </section>

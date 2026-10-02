@@ -4,156 +4,180 @@ require("dotenv").config();
 
 const app = express();
 
+/* ==================================================
+   MIDDLEWARE
+================================================== */
 
 // Allow requests from the React frontend
 app.use(cors());
 
-
-// Allow JSON data
+// Allow JSON request bodies
 app.use(express.json());
 
+/* ==================================================
+   TEST ROUTE
+================================================== */
 
-// Test route
 app.get("/", (req, res) => {
     res.json({
         message: "AntiScam backend is running!"
     });
 });
 
-app.post("/api/chat", async (req, res) => {
+/* ==================================================
+   CHAT API
+================================================== */
 
+app.post("/api/chat", async (req, res) => {
     const { message } = req.body;
 
-    if (!message || !message.trim()) {
+    /* --------------------------------------------------
+       VALIDATION
+    -------------------------------------------------- */
+
+    if (!message || typeof message !== "string" || !message.trim()) {
         return res.status(400).json({
             error: "Message is required."
         });
     }
 
-    try {
+    const trimmedMessage = message.trim();
 
+    if (trimmedMessage.length > 3000) {
+        return res.status(400).json({
+            error: "Message is too long. Please send a shorter message."
+        });
+    }
+
+    /* --------------------------------------------------
+       API KEY CHECK
+    -------------------------------------------------- */
+
+    const apiKey = process.env.OPENROUTER_API_KEY;
+
+    if (!apiKey) {
+        console.error("Server Error: Missing OPENROUTER_API_KEY environment variable.");
+        return res.status(503).json({
+            error: "AI service is not configured."
+        });
+    }
+
+    /* --------------------------------------------------
+       OPENROUTER REQUEST (WITH TIMEOUT)
+    -------------------------------------------------- */
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+    try {
         const response = await fetch(
             "https://openrouter.ai/api/v1/chat/completions",
             {
                 method: "POST",
-
+                signal: controller.signal,
                 headers: {
-                    "Authorization":
-                        `Bearer ${process.env.OPENROUTER_API_KEY}`,
-
+                    "Authorization": `Bearer ${apiKey}`,
                     "Content-Type": "application/json",
-
-                    "HTTP-Referer":
-                        "http://localhost:5173",
-
-                    "X-Title":
-                        "AntiScam College Project"
+                    "HTTP-Referer": "https://anti-scam-beta.vercel.app",
+                    "X-Title": "AntiScam College Project"
                 },
-
                 body: JSON.stringify({
-
                     model: "openrouter/free",
-
+                    max_tokens: 300,
+                    temperature: 0.4,
                     messages: [
-
                         {
                             role: "system",
+                            content: `You are AntiScam, a concise cybersecurity safety assistant.
 
-                            content: `
-You are AntiScam, a cybersecurity awareness assistant.
+Your purpose is to help users recognize and respond safely to phishing, scams, and online fraud.
 
-Your job is to help users recognize and respond to phishing, scams and online fraud.
+Core Safety Rules:
+- Never ask for, repeat, or store passwords, OTPs, PINs, CVVs, card numbers, or bank credentials.
+- Never claim to be a bank, law enforcement, or government authority.
+- Never claim AntiScam can retrieve lost money or officially file police reports.
+- If money was lost or sensitive info was compromised, tell the victim to immediately contact their bank or payment app to freeze accounts/cards.
+- For financial cyber fraud in India, direct users to call the National Cyber Crime Helpline: 1930 and file a report at https://cybercrime.gov.in/
+- Advise preserving evidence (screenshots, transaction IDs/UTR numbers, sender phone numbers, URLs).
 
-Rules:
-- Give simple and practical scam-safety guidance.
-- Never ask for passwords, OTPs, PINs, CVVs, card numbers or banking credentials.
-- Do not claim to be a bank, police officer or government authority.
-- If the user reports financial cyber fraud in India, advise them to contact their bank or payment provider immediately.
-- Tell victims of financial cyber fraud in India that they can call the National Cyber Crime Helpline: 1930.
-- Direct users to the official National Cyber Crime Reporting Portal: https://cybercrime.gov.in/
-- Encourage users to preserve screenshots, transaction IDs, phone numbers, messages and other evidence.
-- Keep responses concise and easy to understand.
-- If there is not enough information, ask a simple follow-up question.
+Response Style (Keep It Short & Fast):
+- Put the most critical, immediate safety action first.
+- Avoid lengthy greetings, philosophical introductions, and unnecessary background explanations.
+- When practical, structure guidance simply:
+  What to do:
+  1. [Action 1]
+  2. [Action 2]
+  3. [Action 3]
 
-Privacy Rules:
-- Users may describe scams involving OTPs, passwords, bank accounts, phone numbers, cards, UPI, or personal information.
-- Provide general safety guidance without asking the user to reveal sensitive information.
-- Never request or repeat OTPs, passwords, PINs, CVVs, full card numbers, bank credentials, government ID numbers, or other secrets.
-- If the user accidentally provides sensitive information, do not repeat it.
-- Tell users to remove or protect sensitive information they accidentally share.
-- You may discuss these types of information in general terms when explaining how to stay safe from scams.
-`
+  Important:
+  [Key warning]
+- Keep responses concise (normally under 150 words).
+- If key details are missing, ask only one brief follow-up question.`
                         },
-
                         {
                             role: "user",
-                            content: message
+                            content: trimmedMessage
                         }
-
                     ]
-
                 })
             }
         );
 
+        /* --------------------------------------------------
+           RESPONSE HANDLING
+        -------------------------------------------------- */
+
+        clearTimeout(timeoutId);
 
         const data = await response.json();
 
-
         if (!response.ok) {
-
-            console.error(
-                "OpenRouter error:",
-                data
-            );
-
+            console.error(`OpenRouter returned HTTP ${response.status}:`, data?.error?.message || "Unknown error");
             return res.status(response.status).json({
-                error:
-                    data?.error?.message ||
-                    "Unable to get AI response."
+                error: data?.error?.message || "Unable to get AI response. Please try again."
             });
         }
 
+        const reply = data?.choices?.[0]?.message?.content;
 
-        const reply =
-            data?.choices?.[0]?.message?.content;
-
-
-        if (!reply) {
-
+        if (!reply || !reply.trim()) {
             return res.status(500).json({
-                error:
-                    "The AI returned an empty response."
+                error: "The AI returned an empty response. Please try again."
             });
         }
-
 
         res.json({
-            reply: reply
+            reply: reply.trim()
         });
-
 
     } catch (error) {
+        clearTimeout(timeoutId);
 
-        console.error(
-            "Chat API error:",
-            error
-        );
+        /* --------------------------------------------------
+           ERROR HANDLING
+        -------------------------------------------------- */
+
+        if (error.name === "AbortError") {
+            console.error("OpenRouter request timed out after 25 seconds.");
+            return res.status(504).json({
+                error: "The AI assistant took too long to respond. Please try again in a moment."
+            });
+        }
+
+        console.error("Chat API error:", error.message || error);
 
         res.status(500).json({
-            error:
-                "Unable to connect to the AI service."
+            error: "Unable to connect to the AI service. Please try again later."
         });
     }
-
 });
 
+/* ==================================================
+   SERVER START
+================================================== */
 
-// Server port
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-    console.log(
-        `AntiScam backend running on port ${PORT}`
-    );
+    console.log(`AntiScam backend running on port ${PORT}`);
 });

@@ -574,6 +574,12 @@
     box-shadow: 0 0 0 2px rgba(0, 188, 212, 0.15);
 }
 
+.ai-chat-form textarea:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    background: #091321;
+}
+
 .ai-chat-form textarea::placeholder {
     color: #64748b;
     font-size: 13px;
