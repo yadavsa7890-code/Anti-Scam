@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
@@ -17,20 +19,17 @@ app.use(express.json());
 
 
 // ========================================
-// TEST ROUTE
+// API ROUTES
 // ========================================
 
-app.get("/", (req, res) => {
+// Health check endpoint
+app.get("/api/health", (req, res) => {
     res.json({
         message: "AntiScam backend is running!"
     });
 });
 
-
-// ========================================
-// ANTISCAM CHAT API
-// ========================================
-
+// AntiScam AI Chat endpoint
 app.post("/api/chat", async (req, res) => {
 
     const { message } = req.body;
@@ -72,6 +71,8 @@ app.post("/api/chat", async (req, res) => {
         // SEND REQUEST TO OPENROUTER
         // ========================================
 
+        const appUrl = process.env.APP_URL || "https://anti-scam-beta.vercel.app";
+
         const response = await fetch(
             "https://openrouter.ai/api/v1/chat/completions",
             {
@@ -84,7 +85,7 @@ app.post("/api/chat", async (req, res) => {
                     "Content-Type": "application/json",
 
                     "HTTP-Referer":
-                        "https://anti-scam-beta.vercel.app",
+                        appUrl,
 
                     "X-Title":
                         "AntiScam College Project"
@@ -255,6 +256,33 @@ Use longer explanations only when the user specifically asks for more detail.
     }
 
 });
+
+
+// ========================================
+// SERVE STATIC FRONTEND (PRODUCTION / BUILD)
+// ========================================
+
+const frontendDistPath = path.join(__dirname, "../frontend/dist");
+
+if (fs.existsSync(frontendDistPath)) {
+    // Serve Vite build static assets
+    app.use(express.static(frontendDistPath));
+
+    // Support client-side React Router navigation and refreshes
+    app.use((req, res, next) => {
+        if ((req.method === "GET" || req.method === "HEAD") && !req.path.startsWith("/api")) {
+            return res.sendFile(path.join(frontendDistPath, "index.html"));
+        }
+        next();
+    });
+} else {
+    // Fallback when frontend build does not exist yet (standalone backend dev)
+    app.get("/", (req, res) => {
+        res.json({
+            message: "AntiScam backend is running! (Frontend build not found at frontend/dist)"
+        });
+    });
+}
 
 
 // ========================================

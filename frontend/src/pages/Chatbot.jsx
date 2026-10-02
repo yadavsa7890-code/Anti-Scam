@@ -58,7 +58,7 @@ function Chatbot() {
 
         try {
             const response = await fetch(
-                "https://anti-scam-qh4l.onrender.com/api/chat",
+                "/api/chat",
                 {
                     method: "POST",
                     headers: {
